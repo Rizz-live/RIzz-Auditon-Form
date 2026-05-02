@@ -36,34 +36,24 @@
   .field{display:flex;flex-direction:column;gap:7px;}
   label{font-size:11px;letter-spacing:2px;font-weight:700;color:var(--muted);text-transform:uppercase;}
   label .req{color:var(--accent2);margin-left:2px;}
-  input,select,textarea{width:100%;background:var(--input-bg);border:1.5px solid var(--input-border);border-radius:10px;padding:12px 15px;font-size:14.5px;font-family:'Nunito',sans-serif;color:var(--text);outline:none;transition:border-color .25s,box-shadow .25s;-webkit-appearance:none;appearance:none;}
+  input,select{width:100%;background:var(--input-bg);border:1.5px solid var(--input-border);border-radius:10px;padding:12px 15px;font-size:14.5px;font-family:'Nunito',sans-serif;color:var(--text);outline:none;transition:border-color .25s,box-shadow .25s;-webkit-appearance:none;appearance:none;}
   input::placeholder{color:rgba(169,140,200,0.45);}
-  input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(200,75,255,0.15);}
+  input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(200,75,255,0.15);}
   select{cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23c84bff' stroke-width='1.8' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;padding-right:36px;}
   select option{background:#1a0035;color:var(--text);}
   input[type="date"]::-webkit-calendar-picker-indicator{filter:invert(0.7) sepia(1) saturate(5) hue-rotate(240deg);cursor:pointer;}
-  .phone-wrap{display:flex;gap:0;}
+  .phone-wrap{display:flex;}
   .phone-prefix{background:rgba(200,75,255,0.15);border:1.5px solid var(--input-border);border-right:none;border-radius:10px 0 0 10px;padding:12px 13px;font-size:14px;color:var(--accent);font-weight:700;white-space:nowrap;display:flex;align-items:center;}
   .phone-wrap input{border-radius:0 10px 10px 0;border-left:none;}
   .upload-zone{background:var(--input-bg);border:1.5px dashed rgba(200,75,255,0.4);border-radius:12px;padding:32px 20px;text-align:center;cursor:pointer;transition:border-color .25s,background .25s,transform .15s;position:relative;overflow:hidden;}
   .upload-zone:hover{border-color:var(--accent);background:rgba(200,75,255,0.07);transform:translateY(-2px);}
-  .upload-icon{font-size:36px;display:block;margin-bottom:8px;transition:transform .2s;}
+  .upload-icon{font-size:36px;display:block;margin-bottom:8px;}
   .upload-title{font-weight:700;font-size:14px;color:var(--text);margin-bottom:4px;}
   .upload-hint{font-size:12px;color:var(--muted);}
   .upload-zone input[type="file"]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
   .file-name{margin-top:8px;font-size:12px;color:var(--accent);font-weight:700;min-height:16px;}
   .photo-preview{display:flex;gap:10px;margin-top:10px;flex-wrap:wrap;}
   .photo-thumb{width:72px;height:72px;border-radius:8px;border:1.5px solid var(--border);object-fit:cover;}
-  /* Progress */
-  .progress-wrap{margin-top:10px;display:none;}
-  .progress-label{font-size:11px;color:var(--muted);margin-bottom:5px;font-weight:600;}
-  .progress-bar-bg{background:rgba(255,255,255,0.06);border-radius:10px;height:7px;overflow:hidden;}
-  .progress-bar{height:100%;background:linear-gradient(90deg,#c84bff,#ff3cac);border-radius:10px;width:0%;transition:width 0.4s ease;}
-  /* Status box */
-  .status-box{margin-top:14px;padding:12px 16px;border-radius:10px;font-size:13px;font-weight:700;display:none;}
-  .status-box.info{background:rgba(200,75,255,0.1);border:1.5px solid rgba(200,75,255,0.3);color:#c84bff;}
-  .status-box.success{background:rgba(51,255,153,0.08);border:1.5px solid rgba(51,255,153,0.3);color:#33ff99;}
-  .status-box.error{background:rgba(255,68,102,0.08);border:1.5px solid rgba(255,68,102,0.3);color:#ff4466;}
   .consent-box{background:rgba(200,75,255,0.05);border:1.5px solid rgba(200,75,255,0.2);border-radius:12px;padding:18px 20px;}
   .consent-text{font-size:13.5px;line-height:1.65;color:#c8b8e8;margin-bottom:16px;}
   .consent-text strong{color:var(--accent2);}
@@ -103,7 +93,6 @@
 
 <div class="form-card">
   <form id="auditionForm" onsubmit="handleSubmit(event)">
-
     <div class="glass">
       <div class="section-label">Basic Information</div>
       <div class="grid-2">
@@ -142,7 +131,6 @@
 
     <div class="glass">
       <div class="section-label">Media Uploads</div>
-
       <div class="field" style="margin-bottom:22px;">
         <label>Audition Video <span class="req">*</span></label>
         <div class="upload-zone">
@@ -152,12 +140,7 @@
           <div class="upload-hint">MP4, MOV, AVI — Max 500 MB</div>
         </div>
         <div class="file-name" id="videoName"></div>
-        <div class="progress-wrap" id="videoProgressWrap">
-          <div class="progress-label" id="videoProgressLabel">Uploading video…</div>
-          <div class="progress-bar-bg"><div class="progress-bar" id="videoBar"></div></div>
-        </div>
       </div>
-
       <div class="field">
         <label>3 Real Photos <span class="req">*</span></label>
         <div class="upload-zone">
@@ -168,10 +151,6 @@
         </div>
         <div class="photo-preview" id="photoPreview"></div>
         <div class="file-name" id="photoName"></div>
-        <div class="progress-wrap" id="photoProgressWrap">
-          <div class="progress-label" id="photoProgressLabel">Uploading photos…</div>
-          <div class="progress-bar-bg"><div class="progress-bar" id="photoBar"></div></div>
-        </div>
       </div>
     </div>
 
@@ -181,8 +160,7 @@
         <div class="consent-text">
           By selecting <strong>Yes</strong>, you confirm that you grant <strong>Rizz Live</strong>
           permission to publish and share your submitted audition video and photos on our official
-          social media pages, promotional channels, and digital platforms for talent showcasing and
-          marketing purposes.
+          social media pages, promotional channels, and digital platforms.
         </div>
         <div class="consent-options">
           <label class="consent-opt" id="optYes" onclick="setConsent('yes')">
@@ -195,7 +173,6 @@
       </div>
     </div>
 
-    <div class="status-box" id="statusBox"></div>
     <button type="submit" class="submit-btn" id="submitBtn">SUBMIT APPLICATION ✦</button>
   </form>
 </div>
@@ -203,13 +180,11 @@
 <div class="toast" id="toast">🎉 Application Submitted Successfully!</div>
 
 <script>
-  // ✅ Apna Apps Script URL yahan paste karo
-  const SHEET_URL = "https://script.google.com/macros/s/AKfycbw3GlnVvA8baMb07RBlCXeDDZk0Q9hux909zFElbclZPJzGni-FJYqkQV0FmNEyX1K5hw/exec";
+  // ✅ Apna Google Apps Script URL yahan paste karo
+  const SHEET_URL = "https://script.google.com/macros/s/AKfycbzOK1jcLxi0imoPH5a084NVUE2cjlk8tJ3gvOmJRhI8d5j26dPThev--Q1RUUo2YtR1Kg/exec";
 
-  // ── File preview helpers ──
   document.getElementById('videoInput').addEventListener('change', function() {
-    const el = document.getElementById('videoName');
-    if (this.files[0]) el.textContent = "✓ " + this.files[0].name;
+    if (this.files[0]) document.getElementById('videoName').textContent = "✓ " + this.files[0].name;
   });
 
   document.getElementById('photoInput').addEventListener('change', function() {
@@ -220,9 +195,9 @@
     nameEl.textContent = "✓ " + count + " photo" + (count > 1 ? "s" : "") + " selected";
     for (let i = 0; i < count; i++) {
       const reader = new FileReader();
-      reader.onload = e => {
+      reader.onload = ev => {
         const img = document.createElement('img');
-        img.src = e.target.result;
+        img.src = ev.target.result;
         img.className = 'photo-thumb';
         preview.appendChild(img);
       };
@@ -237,19 +212,6 @@
     else document.getElementById('optNo').classList.add('selected-no');
   }
 
-  function setStatus(msg, type) {
-    const box = document.getElementById('statusBox');
-    box.textContent = msg;
-    box.className = 'status-box ' + type;
-    box.style.display = 'block';
-  }
-
-  function setProgress(wrap, bar, label, pct, msg) {
-    document.getElementById(wrap).style.display = 'block';
-    document.getElementById(bar).style.width = pct + '%';
-    document.getElementById(label).textContent = msg;
-  }
-
   function toBase64(file) {
     return new Promise((res, rej) => {
       const r = new FileReader();
@@ -259,94 +221,93 @@
     });
   }
 
+  function showToast() {
+    const t = document.getElementById('toast');
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 4000);
+  }
+
+  function resetForm() {
+    document.getElementById('auditionForm').reset();
+    document.getElementById('videoName').textContent = '';
+    document.getElementById('photoName').textContent = '';
+    document.getElementById('photoPreview').innerHTML = '';
+    document.getElementById('optYes').classList.remove('selected-yes');
+    document.getElementById('optNo').classList.remove('selected-no');
+  }
+
   async function handleSubmit(e) {
     e.preventDefault();
     const btn = document.getElementById('submitBtn');
     btn.disabled = true;
-    btn.textContent = "Preparing…";
+    btn.textContent = "Submitting…";
 
+    const form       = document.getElementById('auditionForm');
     const videoFile  = document.getElementById('videoInput').files[0];
     const photoFiles = document.getElementById('photoInput').files;
+    const consentEl  = form.querySelector('[name=consent]:checked');
 
-    if (!videoFile) { setStatus("❌ Please select a video file.", "error"); btn.disabled = false; btn.textContent = "SUBMIT APPLICATION ✦"; return; }
-    if (!photoFiles || photoFiles.length < 1) { setStatus("❌ Please select at least 1 photo.", "error"); btn.disabled = false; btn.textContent = "SUBMIT APPLICATION ✦"; return; }
+    if (!videoFile)  { alert("Please select a video!"); btn.disabled=false; btn.textContent="SUBMIT APPLICATION ✦"; return; }
+    if (!photoFiles || photoFiles.length < 1) { alert("Please select photos!"); btn.disabled=false; btn.textContent="SUBMIT APPLICATION ✦"; return; }
+    if (!consentEl)  { alert("Please select consent!"); btn.disabled=false; btn.textContent="SUBMIT APPLICATION ✦"; return; }
+
+    // ── STEP 1: Text data immediately submit karo (2 sec mein success) ──
+    const textPayload = new URLSearchParams();
+    textPayload.append('hostName',    form.querySelector('[name=hostName]').value);
+    textPayload.append('joiningDate', form.querySelector('[name=joiningDate]').value);
+    textPayload.append('agencyName',  form.querySelector('[name=agencyName]').value);
+    textPayload.append('whatsapp',    form.querySelector('[name=whatsapp]').value);
+    textPayload.append('supervisor',  form.querySelector('[name=supervisor]').value);
+    textPayload.append('consent',     consentEl.value);
+    textPayload.append('timestamp',   new Date().toISOString());
+    textPayload.append('videoName',   videoFile.name);
+    textPayload.append('videoMime',   videoFile.type || 'video/mp4');
+    textPayload.append('textOnly',    'true');
 
     try {
-      // ── Convert video ──
-      setStatus("⏳ Converting video…", "info");
-      setProgress('videoProgressWrap', 'videoBar', 'videoProgressLabel', 10, "Reading video…");
+      await fetch(SHEET_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: textPayload.toString()
+      });
+    } catch(_) {}
+
+    // ── Success instantly dikhao ──
+    btn.textContent = "SUBMIT APPLICATION ✦";
+    btn.disabled = false;
+    resetForm();
+    showToast();
+
+    // ── STEP 2: Files background mein upload karo (user ko wait nahi karna) ──
+    uploadFilesInBackground(textPayload, videoFile, photoFiles);
+  }
+
+  async function uploadFilesInBackground(basePayload, videoFile, photoFiles) {
+    try {
+      const fd = new URLSearchParams(basePayload);
+      fd.set('textOnly', 'false');
+
+      // Video convert
       const videoBase64 = await toBase64(videoFile);
-      setProgress('videoProgressWrap', 'videoBar', 'videoProgressLabel', 60, "Video ready ✓");
-
-      // ── Convert photos ──
-      setStatus("⏳ Converting photos…", "info");
-      const photoCount = Math.min(photoFiles.length, 3);
-      const fd = new URLSearchParams();
-
-      // Text fields
-      const form = document.getElementById('auditionForm');
-      fd.append('hostName',    form.querySelector('[name=hostName]').value);
-      fd.append('joiningDate', form.querySelector('[name=joiningDate]').value);
-      fd.append('agencyName',  form.querySelector('[name=agencyName]').value);
-      fd.append('whatsapp',    form.querySelector('[name=whatsapp]').value);
-      fd.append('supervisor',  form.querySelector('[name=supervisor]').value);
-      fd.append('consent',     form.querySelector('[name=consent]:checked') ? form.querySelector('[name=consent]:checked').value : '');
-      fd.append('timestamp',   new Date().toISOString());
-
-      // Video
       fd.append('videoData', videoBase64);
-      fd.append('videoName', videoFile.name);
-      fd.append('videoMime', videoFile.type || 'video/mp4');
-      setProgress('videoProgressWrap', 'videoBar', 'videoProgressLabel', 100, "✓ Video converted");
 
-      // Photos
-      for (let i = 0; i < photoCount; i++) {
-        setProgress('photoProgressWrap', 'photoBar', 'photoProgressLabel', ((i+1)/photoCount*80), "Converting photo " + (i+1) + "…");
+      // Photos convert
+      const count = Math.min(photoFiles.length, 3);
+      for (let i = 0; i < count; i++) {
         const pb = await toBase64(photoFiles[i]);
         fd.append('photo' + i + 'Data', pb);
         fd.append('photo' + i + 'Name', photoFiles[i].name);
         fd.append('photo' + i + 'Mime', photoFiles[i].type || 'image/jpeg');
       }
-      setProgress('photoProgressWrap', 'photoBar', 'photoProgressLabel', 100, "✓ Photos converted");
 
-      // ── Submit ──
-      setStatus("📤 Wating for Submitting", "info");
-      btn.textContent = "Uploading to Drive…";
-
-      const resp = await fetch(SHEET_URL, {
+      // Background submit
+      await fetch(SHEET_URL, {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: fd.toString()
       });
-
-      const result = await resp.json();
-
-      if (result.status === "success") {
-        setStatus("✅ Submitted! Video & photos saved to Google Drive.", "success");
-        btn.textContent = "SUBMIT APPLICATION ✦";
-        btn.disabled = false;
-
-        // Reset form
-        form.reset();
-        document.getElementById('videoName').textContent = '';
-        document.getElementById('photoName').textContent = '';
-        document.getElementById('photoPreview').innerHTML = '';
-        document.getElementById('optYes').classList.remove('selected-yes');
-        document.getElementById('optNo').classList.remove('selected-no');
-
-        const toast = document.getElementById('toast');
-        toast.classList.add('show');
-        setTimeout(() => toast.classList.remove('show'), 4000);
-      } else {
-        setStatus("❌ Error: " + (result.message || "Unknown error"), "error");
-        btn.textContent = "SUBMIT APPLICATION ✦";
-        btn.disabled = false;
-      }
-
-    } catch (err) {
-      setStatus("❌ Network error: " + err.message, "error");
-      btn.textContent = "SUBMIT APPLICATION ✦";
-      btn.disabled = false;
+    } catch(err) {
+      console.log("Background upload error:", err);
     }
   }
 </script>
