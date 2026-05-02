@@ -204,7 +204,7 @@
 
 <script>
   // ✅ Apna Apps Script URL yahan paste karo
-  const SHEET_URL = "https://script.google.com/macros/s/AKfycbyVD-FTvFtFDReG_-kkfzc9Dd1Fr2NCX4H7mw1k4vUQtY7SFx4ltX9vZNe4BGS6Z6PUTw/exec";
+  const SHEET_URL = "https://script.google.com/macros/s/AKfycbwSlWvkOn-4hF5LNAbGunCUIhlW0ZR_D6FYuv8bC7z-mm4o45gl93BZDfmV7kTNf7LRPA/exec";
 
   // ── File preview helpers ──
   document.getElementById('videoInput').addEventListener('change', function() {
@@ -310,7 +310,7 @@
       setProgress('photoProgressWrap', 'photoBar', 'photoProgressLabel', 100, "✓ Photos converted");
 
       // ── Submit ──
-      setStatus("📤 Submitting to Google Drive…", "info");
+      setStatus("📤 Wating for Submitting", "info");
       btn.textContent = "Uploading to Drive…";
 
       const resp = await fetch(SHEET_URL, {
