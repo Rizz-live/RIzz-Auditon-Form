@@ -63,14 +63,11 @@
   .consent-opt:hover{border-color:var(--accent);color:var(--text);}
   .consent-opt.selected-yes{border-color:#33ff99;background:rgba(51,255,153,0.1);color:#33ff99;box-shadow:0 0 14px rgba(51,255,153,0.2);}
   .consent-opt.selected-no{border-color:#ff4466;background:rgba(255,68,102,0.1);color:#ff4466;box-shadow:0 0 14px rgba(255,68,102,0.2);}
-
-  /* Progress Bar */
   .progress-wrap{display:none;margin-top:16px;}
   .progress-wrap.show{display:block;}
   .progress-label{font-size:12px;color:var(--muted);margin-bottom:6px;font-weight:600;}
   .progress-bar{height:6px;background:rgba(255,255,255,0.1);border-radius:3px;overflow:hidden;}
   .progress-fill{height:100%;background:linear-gradient(90deg,#c84bff,#ff3cac);border-radius:3px;width:0%;transition:width 0.4s ease;}
-
   .submit-btn{width:100%;padding:16px;background:linear-gradient(135deg,#c84bff,#ff3cac);border:none;border-radius:12px;font-family:'Orbitron',sans-serif;font-size:15px;font-weight:700;letter-spacing:2px;color:#fff;cursor:pointer;transition:opacity .2s,transform .15s,box-shadow .2s;box-shadow:0 4px 30px rgba(200,75,255,0.35);margin-top:8px;}
   .submit-btn:hover{opacity:.9;transform:translateY(-2px);box-shadow:0 8px 40px rgba(200,75,255,0.55);}
   .submit-btn:active{transform:scale(0.98);}
@@ -78,6 +75,7 @@
   .toast{position:fixed;bottom:30px;left:50%;transform:translateX(-50%) translateY(80px);background:linear-gradient(135deg,#1a0035,#2d005a);border:1.5px solid #33ff99;border-radius:14px;padding:14px 28px;font-weight:700;color:#33ff99;font-size:15px;box-shadow:0 0 30px rgba(51,255,153,0.3);z-index:9999;transition:transform .4s cubic-bezier(.34,1.56,.64,1),opacity .3s;opacity:0;pointer-events:none;}
   .toast.show{transform:translateX(-50%) translateY(0);opacity:1;}
   .status-msg{text-align:center;font-size:13px;color:var(--muted);margin-top:10px;min-height:18px;}
+  .error-msg{color:#ff4466 !important;}
 </style>
 </head>
 <body>
@@ -183,7 +181,6 @@
         <div class="file-name" id="photoName"></div>
       </div>
 
-      <!-- Upload Progress -->
       <div class="progress-wrap" id="progressWrap">
         <div class="progress-label" id="progressLabel">Uploading… 0%</div>
         <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
@@ -217,13 +214,19 @@
 <div class="toast" id="toast">🎉 Application Submitted Successfully!</div>
 
 <script>
-  // ── CONFIG ──────────────────────────────────────────────────────────────
-  const SHEET_URL = "https://script.google.com/macros/s/AKfycbwdrNQoWZxOMSfJCCt8JoEEIsWhS-05IrEobBaw_Qcon3Ef8-fX2Sqk2wEmzMREhw18ww/exec";
+  // ══════════════════════════════════════════════════════════════════
+  // ⚠️  SIRF YEH URL APNA DAALO — Apps Script deploy ka URL
+  // ══════════════════════════════════════════════════════════════════
+  const SHEET_URL = "https://script.google.com/macros/s/AKfycbzjigb6EIcz1r9Sj_89t-YNJHhKEfEAgalVp6ub4NWEGNFKHiLhMkMV-ynXbDQuVR4FbA/exec";
 
-  // ── FILE PREVIEW ─────────────────────────────────────────────────────────
+  // Chunk size: 3MB (safe for Apps Script 6MB limit)
+  const CHUNK_SIZE = 3 * 1024 * 1024;
+
+  // ── FILE PREVIEW ──────────────────────────────────────────────────
   document.getElementById('videoInput').addEventListener('change', function() {
     if (this.files[0]) {
-      document.getElementById('videoName').textContent = "✓ " + this.files[0].name;
+      const sizeMB = (this.files[0].size / 1024 / 1024).toFixed(1);
+      document.getElementById('videoName').textContent = `✓ ${this.files[0].name} (${sizeMB} MB)`;
     }
   });
 
@@ -233,7 +236,7 @@
     preview.innerHTML = '';
 
     if (this.files.length !== 3) {
-      nameEl.textContent = "⚠️ Please select exactly 3 photos (selected: " + this.files.length + ")";
+      nameEl.textContent = `⚠️ Please select exactly 3 photos (selected: ${this.files.length})`;
       nameEl.style.color = '#ff4466';
       return;
     }
@@ -253,7 +256,7 @@
     }
   });
 
-  // ── CONSENT ──────────────────────────────────────────────────────────────
+  // ── CONSENT ───────────────────────────────────────────────────────
   function setConsent(val) {
     document.getElementById('optYes').classList.remove('selected-yes');
     document.getElementById('optNo').classList.remove('selected-no');
@@ -261,7 +264,7 @@
     else document.getElementById('optNo').classList.add('selected-no');
   }
 
-  // ── PROGRESS UI ──────────────────────────────────────────────────────────
+  // ── PROGRESS UI ───────────────────────────────────────────────────
   function setProgress(pct, label) {
     document.getElementById('progressWrap').classList.add('show');
     document.getElementById('progressFill').style.width = pct + '%';
@@ -271,18 +274,28 @@
     document.getElementById('progressWrap').classList.remove('show');
   }
 
-  // ── FILE → BASE64 ────────────────────────────────────────────────────────
-  function toBase64(file) {
+  // ── FILE → ArrayBuffer ────────────────────────────────────────────
+  function readFileAsBuffer(file) {
     return new Promise((res, rej) => {
       const r = new FileReader();
-      r.onload  = () => res(r.result.split(',')[1]);
+      r.onload  = () => res(r.result);
       r.onerror = rej;
-      r.readAsDataURL(file);
+      r.readAsArrayBuffer(file);
     });
   }
 
-  // ── SEND ONE CHUNK (with retry) ──────────────────────────────────────────
-  async function sendChunk(params, retries = 3) {
+  // ── ArrayBuffer → Base64 ──────────────────────────────────────────
+  function bufferToBase64(buffer) {
+    const bytes = new Uint8Array(buffer);
+    let binary = '';
+    for (let i = 0; i < bytes.byteLength; i++) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+    return btoa(binary);
+  }
+
+  // ── POST with retry ───────────────────────────────────────────────
+  async function postData(params, retries = 3) {
     for (let attempt = 1; attempt <= retries; attempt++) {
       try {
         const resp = await fetch(SHEET_URL, {
@@ -290,23 +303,64 @@
           headers: { "Content-Type": "application/x-www-form-urlencoded" },
           body: new URLSearchParams(params).toString()
         });
-        if (resp.ok) return true;
+        if (resp.ok) {
+          const text = await resp.text();
+          return { ok: true, text };
+        }
       } catch (err) {
-        if (attempt === retries) return false;
+        if (attempt === retries) return { ok: false, err };
         await new Promise(r => setTimeout(r, 1000 * attempt));
       }
     }
-    return false;
+    return { ok: false };
   }
 
-  // ── TOAST ────────────────────────────────────────────────────────────────
+  // ── CHUNKED UPLOAD ────────────────────────────────────────────────
+  // Video badi hoti hai — isko chunks mein bhejte hain
+  // Apps Script side pe chunks assemble karta hai aur Drive pe save karta hai
+  async function uploadFileChunked(file, base, actionPrefix, fileIndex, onProgress) {
+    const buffer = await readFileAsBuffer(file);
+    const totalBytes = buffer.byteLength;
+    const totalChunks = Math.ceil(totalBytes / CHUNK_SIZE);
+    const uploadId = `${base.hostId}_${Date.now()}_${fileIndex}`;
+
+    for (let i = 0; i < totalChunks; i++) {
+      const start = i * CHUNK_SIZE;
+      const end   = Math.min(start + CHUNK_SIZE, totalBytes);
+      const chunk  = buffer.slice(start, end);
+      const chunkB64 = bufferToBase64(chunk);
+
+      const pct = Math.round(((i + 1) / totalChunks) * 100);
+      onProgress(pct, `${actionPrefix}: chunk ${i + 1}/${totalChunks} (${pct}%)`);
+
+      const result = await postData({
+        ...base,
+        action      : "uploadChunk",
+        uploadId,
+        fileName    : file.name,
+        fileMime    : file.type,
+        fileType    : actionPrefix, // "video" ya "photo"
+        photoIndex  : fileIndex,
+        chunkIndex  : i,
+        totalChunks,
+        chunkData   : chunkB64
+      });
+
+      if (!result.ok) {
+        console.warn(`Chunk ${i} failed, retrying handled inside postData`);
+      }
+    }
+    return uploadId;
+  }
+
+  // ── TOAST ─────────────────────────────────────────────────────────
   function showToast() {
     const t = document.getElementById('toast');
     t.classList.add('show');
     setTimeout(() => t.classList.remove('show'), 5000);
   }
 
-  // ── RESET ────────────────────────────────────────────────────────────────
+  // ── RESET ─────────────────────────────────────────────────────────
   function resetForm() {
     document.getElementById('auditionForm').reset();
     document.getElementById('videoName').textContent = '';
@@ -318,15 +372,20 @@
     hideProgress();
   }
 
-  // ── MAIN SUBMIT ──────────────────────────────────────────────────────────
+  // ── STATUS ────────────────────────────────────────────────────────
+  function setStatus(msg, isError = false) {
+    const el = document.getElementById('statusMsg');
+    el.textContent = msg;
+    el.className = 'status-msg' + (isError ? ' error-msg' : '');
+  }
+
+  // ── MAIN SUBMIT ───────────────────────────────────────────────────
   async function handleSubmit(e) {
     e.preventDefault();
 
-    const btn       = document.getElementById('submitBtn');
-    const statusMsg = document.getElementById('statusMsg');
-    const form      = document.getElementById('auditionForm');
+    const btn  = document.getElementById('submitBtn');
+    const form = document.getElementById('auditionForm');
 
-    // ── Collect fields ──
     const hostName    = form.querySelector('[name=hostName]').value.trim();
     const hostId      = form.querySelector('[name=hostId]').value.trim();
     const joiningDate = form.querySelector('[name=joiningDate]').value;
@@ -338,104 +397,67 @@
     const videoFile   = document.getElementById('videoInput').files[0];
     const photoFiles  = document.getElementById('photoInput').files;
 
-    // ── Validate ──
-    if (!videoFile) {
-      alert("Please select an audition video!"); return;
-    }
-    if (!photoFiles || photoFiles.length !== 3) {
-      alert("Please select exactly 3 photos!"); return;
-    }
-    if (!consentEl) {
-      alert("Please select a consent option!"); return;
-    }
+    // Validation
+    if (!videoFile)                         { alert("Audition video select karo!"); return; }
+    if (!photoFiles || photoFiles.length !== 3) { alert("Exactly 3 photos select karo!"); return; }
+    if (!consentEl)                         { alert("Consent option choose karo!"); return; }
 
     btn.disabled = true;
     btn.textContent = "Uploading…";
 
-    // ── Generate timestamp NOW (client-side, always set) ──
-    const now = new Date();
-    // Format: DD-MM-YYYY HH:MM:SS  (readable in Sheets)
     const pad = n => String(n).padStart(2, '0');
+    const now = new Date();
     const timestamp = `${pad(now.getDate())}-${pad(now.getMonth()+1)}-${now.getFullYear()} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
 
-    // ── Base payload (text data, always included in every request) ──
-    const base = {
-      timestamp,
-      hostName,
-      hostId,
-      joiningDate,
-      hostType,
-      agencyName,
-      whatsapp,
-      supervisor,
-      consent: consentEl.value
-    };
-
-    // ═══════════════════════════════════════════════════════════════
-    // STEP 1 – Send text-only row first (instant, no files)
-    // ═══════════════════════════════════════════════════════════════
-    setProgress(5, "Saving your details…");
-    statusMsg.textContent = "Step 1/3 — Saving form details…";
-
-    await sendChunk({ ...base, action: "textOnly" });
-
-    // ═══════════════════════════════════════════════════════════════
-    // STEP 2 – Upload VIDEO (base64, one request)
-    // ═══════════════════════════════════════════════════════════════
-    setProgress(20, "Uploading video…");
-    statusMsg.textContent = "Step 2/3 — Uploading audition video…";
+    const base = { timestamp, hostName, hostId, joiningDate, hostType, agencyName, whatsapp, supervisor, consent: consentEl.value };
 
     try {
-      const videoB64 = await toBase64(videoFile);
-      await sendChunk({
-        ...base,
-        action    : "uploadVideo",
-        videoData : videoB64,
-        videoName : videoFile.name,
-        videoMime : videoFile.type || "video/mp4"
-      });
-    } catch (err) {
-      console.warn("Video upload failed:", err);
-    }
+      // ── STEP 1: Text row save karo ──────────────────────────────
+      setProgress(2, "Saving your details…");
+      setStatus("Step 1/3 — Form details save ho rahi hain…");
+      await postData({ ...base, action: "textOnly" });
 
-    setProgress(60, "Video uploaded ✓");
+      // ── STEP 2: Video chunked upload ────────────────────────────
+      setStatus("Step 2/3 — Video upload ho rahi hai… (thoda time lagega)");
+      await uploadFileChunked(
+        videoFile, base, "video", 0,
+        (pct, label) => {
+          const overall = 5 + Math.round(pct * 0.55); // 5% to 60%
+          setProgress(overall, `🎬 Video: ${label}`);
+        }
+      );
+      setProgress(60, "Video uploaded ✓");
 
-    // ═══════════════════════════════════════════════════════════════
-    // STEP 3 – Upload PHOTOS one-by-one
-    // ═══════════════════════════════════════════════════════════════
-    const count = Math.min(photoFiles.length, 3);
-    for (let i = 0; i < count; i++) {
-      const pct   = 60 + Math.round(((i + 1) / count) * 35);
-      const label = `Uploading photo ${i + 1} of ${count}…`;
-      setProgress(pct, label);
-      statusMsg.textContent = `Step 3/3 — ${label}`;
-
-      try {
-        const photoB64 = await toBase64(photoFiles[i]);
-        await sendChunk({
-          ...base,
-          action    : "uploadPhoto",
-          photoData : photoB64,
-          photoName : photoFiles[i].name,
-          photoMime : photoFiles[i].type || "image/jpeg",
-          photoIndex: i + 1
-        });
-      } catch (err) {
-        console.warn(`Photo ${i+1} upload failed:`, err);
+      // ── STEP 3: Photos upload ────────────────────────────────────
+      for (let i = 0; i < 3; i++) {
+        setStatus(`Step 3/3 — Photo ${i+1}/3 upload ho rahi hai…`);
+        await uploadFileChunked(
+          photoFiles[i], base, "photo", i + 1,
+          (pct, label) => {
+            const base60  = 60 + i * 13;
+            const overall = base60 + Math.round(pct * 0.12);
+            setProgress(Math.min(overall, 99), `📸 Photo ${i+1}: ${label}`);
+          }
+        );
       }
+
+      // ── Done ─────────────────────────────────────────────────────
+      setProgress(100, "All uploads complete ✓");
+      setStatus("✅ Application submitted successfully!");
+      showToast();
+
+      setTimeout(() => {
+        btn.textContent = "SUBMIT APPLICATION ✦";
+        btn.disabled = false;
+        resetForm();
+      }, 3000);
+
+    } catch (err) {
+      console.error(err);
+      setStatus("❌ Kuch error aaya. Dobara try karo.", true);
+      btn.textContent = "SUBMIT APPLICATION ✦";
+      btn.disabled = false;
     }
-
-    // ── Done ──
-    setProgress(100, "All files uploaded ✓");
-    statusMsg.textContent = "✅ Application submitted successfully!";
-
-    btn.textContent = "SUBMIT APPLICATION ✦";
-    btn.disabled = false;
-    showToast();
-
-    setTimeout(() => {
-      resetForm();
-    }, 2000);
   }
 </script>
 </body>
