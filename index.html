@@ -98,18 +98,28 @@
   .submit-btn:hover:not(:disabled){opacity:.9;transform:translateY(-2px);box-shadow:0 8px 40px rgba(200,75,255,0.55);}
   .submit-btn:active:not(:disabled){transform:scale(0.97);}
   .submit-btn:disabled{opacity:0.55;cursor:not-allowed;transform:none;}
+
+  /* ── INSTANT FEEDBACK: button morphs immediately ── */
+  .submit-btn.loading{
+    background:linear-gradient(135deg,#7a1fa8,#9e1a6a);
+    letter-spacing:1px;
+    position:relative;
+    overflow:hidden;
+  }
+  .submit-btn.loading::after{
+    content:'';
+    position:absolute;
+    inset:0;
+    background:linear-gradient(90deg,transparent,rgba(255,255,255,0.08),transparent);
+    animation:shimmer 1.4s infinite;
+  }
+  @keyframes shimmer{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}
+
   .status-msg{text-align:center;font-size:13px;color:var(--muted);margin-top:10px;min-height:18px;line-height:1.5;}
   .status-msg.err{color:var(--red);}
   .status-msg.ok{color:var(--green);}
   .toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(100px);background:linear-gradient(135deg,#1a0035,#2d005a);border:1.5px solid var(--green);border-radius:14px;padding:14px 28px;font-weight:700;color:var(--green);font-size:15px;box-shadow:0 0 30px rgba(51,255,153,0.3);z-index:9999;transition:transform .4s cubic-bezier(.34,1.56,.64,1),opacity .3s;opacity:0;pointer-events:none;text-align:center;max-width:90vw;}
   .toast.show{transform:translateX(-50%) translateY(0);opacity:1;}
-
-  /* INSTANT FEEDBACK overlay */
-  .submitting-overlay{display:none;position:fixed;inset:0;z-index:999;background:rgba(13,5,32,0.7);backdrop-filter:blur(4px);align-items:center;justify-content:center;flex-direction:column;gap:16px;}
-  .submitting-overlay.show{display:flex;}
-  .spinner{width:52px;height:52px;border:4px solid rgba(200,75,255,0.2);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;}
-  @keyframes spin{to{transform:rotate(360deg)}}
-  .overlay-text{font-family:'Orbitron',sans-serif;font-size:13px;color:var(--accent);letter-spacing:2px;}
 </style>
 </head>
 <body>
@@ -130,12 +140,6 @@
 <div class="page-title-wrap">
   <div class="page-title">Rizz Live Audition Form</div>
   <div class="page-sub">Fill in all details carefully. Our team will review your application.</div>
-</div>
-
-<!-- Instant feedback overlay -->
-<div class="submitting-overlay" id="overlay">
-  <div class="spinner"></div>
-  <div class="overlay-text" id="overlayText">PROCESSING…</div>
 </div>
 
 <div class="form-card">
@@ -381,17 +385,13 @@ function showWarn(show) {
   document.getElementById('warnBox').className = 'warn-box' + (show ? ' show' : '');
 }
 
-// ── OVERLAY ───────────────────────────────────────────────────────
-function showOverlay(text) {
-  document.getElementById('overlayText').textContent = text || 'PROCESSING…';
-  document.getElementById('overlay').classList.add('show');
-}
-function hideOverlay() {
-  document.getElementById('overlay').classList.remove('show');
-}
-
 // ── HELPERS ───────────────────────────────────────────────────────
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+// KEY FIX: nextFrame — ek paint cycle wait karta hai taaki UI render ho pehle
+function nextFrame() {
+  return new Promise(r => requestAnimationFrame(() => setTimeout(r, 0)));
+}
 
 function readAsBuffer(file) {
   return new Promise((res, rej) => {
@@ -536,7 +536,13 @@ function resetAll() {
   isSubmitting = false;
 }
 
-// ── SUBMIT ────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════
+//  SUBMIT — INSTANT FEEDBACK TRICK
+//  Step 1: validate (sync, 0ms)
+//  Step 2: UI update karo IMMEDIATELY (button morph, progress show)
+//  Step 3: nextFrame() → browser ek repaint kare (~16ms)
+//  Step 4: phir heavy work shuru karo (FileReader, network)
+// ══════════════════════════════════════════════════════════════════
 async function handleSubmit(ev) {
   ev.preventDefault();
 
@@ -545,19 +551,27 @@ async function handleSubmit(ev) {
     return;
   }
 
-  // ✅ STEP 1: Validate instantly (zero network calls)
+  // ✅ STEP 1: Validate instantly (zero network calls, sync)
   const fields = validate();
   if (!fields) return;
 
-  // ✅ STEP 2: Lock + show instant feedback immediately
+  // ✅ STEP 2: INSTANT UI feedback — ye lines click ke baad <1ms mein chalti hain
   isSubmitting = true;
   const btn = document.getElementById('submitBtn');
   btn.disabled    = true;
-  btn.textContent = '⏳ Uploading… Page mat band karo';
+  btn.textContent = '⏳ Processing… please wait';
+  btn.classList.add('loading');
+  setStatus('🚀 Upload shuru ho rahi hai…');
 
-  // Show spinner overlay INSTANTLY — user sees response in <50ms
-  showOverlay('STARTING UPLOAD…');
+  buildSteps();
+  setProgress(1, 'Starting…');
+  stepActive('s0');
 
+  // ✅ STEP 3: Browser ko ek full paint frame dedo — user turant feedback dekhega
+  // Bina is await ke, browser queued renders skip kar deta hai jab tak JS block ho
+  await nextFrame();
+
+  // ✅ STEP 4: Ab heavy async work shuru karo
   const timestamp = nowStr();
   const base = {
     timestamp,
@@ -571,20 +585,16 @@ async function handleSubmit(ev) {
     consent     : fields.consent
   };
 
-  buildSteps();
-
   try {
-    // ── Step 0: Save text row (no duplicate check — avoids 2-4s delay) ──
-    stepActive('s0');
+    // ── Step 0: Save text row ──────────────────────────────────────
     setProgress(2, 'Form details save ho rahi hain…');
     setStatus('Step 1/5 — Details save ho rahi hain…');
-    hideOverlay(); // hide overlay, progress bar ab dikhega
 
     await post({ ...base, action: 'textOnly' });
     stepDone('s0', '✓ Details saved');
     setProgress(5, 'Details saved ✓');
 
-    // ── Step 1: Video ─────────────────────────────────────────────
+    // ── Step 1: Video ──────────────────────────────────────────────
     stepActive('s1');
     setStatus('Step 2/5 — Video upload ho rahi hai… Page band mat karo!');
     const videoMB = (fields.videoFile.size / 1024 / 1024).toFixed(1);
@@ -597,7 +607,7 @@ async function handleSubmit(ev) {
     stepDone('s1', '✓ Video uploaded');
     setProgress(60, 'Video complete ✓');
 
-    // ── Steps 2–4: Photos ─────────────────────────────────────────
+    // ── Steps 2–4: Photos ──────────────────────────────────────────
     for (let i = 0; i < 3; i++) {
       const sId = 's' + (2 + i);
       stepActive(sId);
@@ -610,11 +620,12 @@ async function handleSubmit(ev) {
       stepDone(sId, `✓ Photo ${i+1} uploaded`);
     }
 
-    // ── Done ──────────────────────────────────────────────────────
+    // ── Done ───────────────────────────────────────────────────────
     setProgress(100, '✅ Sab upload complete!');
     setStatus('🎉 Application submitted successfully!', 'ok');
     showToast();
     btn.textContent = '✅ Submitted!';
+    btn.classList.remove('loading');
 
     setTimeout(() => {
       resetAll();
@@ -624,11 +635,11 @@ async function handleSubmit(ev) {
 
   } catch (err) {
     console.error('Submit error:', err);
-    hideOverlay();
     setStatus('❌ ' + (err.message || 'Unknown error') + ' — Dobara try karo.', 'err');
     showWarn(false);
     btn.disabled    = false;
     btn.textContent = 'SUBMIT APPLICATION ✦';
+    btn.classList.remove('loading');
     isSubmitting    = false;
   }
 }
