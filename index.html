@@ -255,19 +255,22 @@
 
 <script>
 // ══════════════════════════════════════════════════════════════════
-//  ⚠️  APNA APPS SCRIPT URL YAHAN DAALO (Deploy ke baad milega)
+//  ⚠️  APNA APPS SCRIPT URL YAHAN DAALO
 // ══════════════════════════════════════════════════════════════════
 const SHEET_URL = "https://script.google.com/macros/s/AKfycbxSH1KUvDqilq53b-TBvZeRhbFsDys7uOUMNfMqbKCHbWxdV6FRFYt7XX8fyyQsoVBbvA/exec";
 
-// Chunk size: 750KB base64-encoded = ~500KB binary — safe for Apps Script
+// Chunk size: 750KB base64-encoded ≈ 500KB binary
 const CHUNK_SIZE  = 750 * 1024;
 const MAX_RETRIES = 6;
 
+// ✅ FIX: Submission lock — double submit prevent karo
+let isSubmitting = false;
+
 // ── FILE EVENTS ───────────────────────────────────────────────────
 document.getElementById('videoInput').addEventListener('change', function () {
-  const file   = this.files[0];
-  const info   = document.getElementById('videoInfo');
-  const zone   = document.getElementById('videoZone');
+  const file = this.files[0];
+  const info = document.getElementById('videoInfo');
+  const zone = document.getElementById('videoZone');
   if (!file) return;
   const mb = (file.size / 1024 / 1024).toFixed(1);
   info.textContent = `✓ ${file.name}  (${mb} MB)`;
@@ -335,7 +338,7 @@ function buildSteps() {
 
 function stepActive(id) {
   document.querySelectorAll('.step').forEach(el => el.classList.remove('active'));
-  const s = document.getElementById('step-' + id);
+  const s  = document.getElementById('step-' + id);
   const ic = document.getElementById('sicon-' + id);
   if (s)  s.classList.add('active');
   if (ic) ic.textContent = '●';
@@ -380,7 +383,6 @@ function readAsBuffer(file) {
 }
 
 function toBase64(buffer) {
-  // Safe chunked approach — avoids stack overflow on large arrays
   const bytes = new Uint8Array(buffer);
   let bin = '';
   const step = 8192;
@@ -396,27 +398,47 @@ function nowStr() {
   return `${p(d.getDate())}-${p(d.getMonth()+1)}-${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
 }
 
-// ── POST (no-cors, retry) ─────────────────────────────────────────
+// ── POST with timeout + retry ─────────────────────────────────────
 async function post(params, retries = MAX_RETRIES) {
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
+      // ✅ FIX: 30s timeout per chunk
+      const controller = new AbortController();
+      const timeoutId  = setTimeout(() => controller.abort(), 30000);
+
       await fetch(SHEET_URL, {
         method : 'POST',
-        mode   : 'no-cors',                        // ← CORS fix
+        mode   : 'no-cors',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body   : new URLSearchParams(params).toString()
+        body   : new URLSearchParams(params).toString(),
+        signal : controller.signal
       });
+
+      clearTimeout(timeoutId);
       showWarn(false);
       return true;
     } catch (err) {
       console.warn(`Attempt ${attempt}/${retries} failed:`, err.message);
       if (attempt < retries) {
         showWarn(true);
-        await sleep(1500 * attempt);  // backoff: 1.5s, 3s, 4.5s…
+        await sleep(1500 * attempt);
       }
     }
   }
-  throw new Error('Network error — sab retries fail ho gayi. Net check karo.');
+  throw new Error('Network error — sab retries fail ho gayi. Internet check karo aur dobara try karo.');
+}
+
+// ✅ FIX: checkDuplicate — GET request, CORS-enabled
+async function checkDuplicate(hostId) {
+  try {
+    const url = SHEET_URL + '?action=checkDuplicate&hostId=' + encodeURIComponent(hostId);
+    const res  = await fetch(url, { method: 'GET', mode: 'cors' });
+    const data = await res.json();
+    return data; // { exists, pending, row }
+  } catch (err) {
+    console.warn('Duplicate check failed (non-critical):', err.message);
+    return { exists: false, pending: false, row: -1 };
+  }
 }
 
 // ── CHUNKED UPLOAD ────────────────────────────────────────────────
@@ -429,11 +451,11 @@ async function uploadChunked(file, base, fileType, photoIndex, onProgress) {
   console.log(`[${fileType}] ${file.name} — ${(totalBytes/1024/1024).toFixed(2)} MB — ${totalChunks} chunks`);
 
   for (let i = 0; i < totalChunks; i++) {
-    const start  = i * CHUNK_SIZE;
-    const end    = Math.min(start + CHUNK_SIZE, totalBytes);
-    const chunk  = buffer.slice(start, end);
-    const b64    = toBase64(chunk);
-    const pct    = Math.round(((i + 1) / totalChunks) * 100);
+    const start = i * CHUNK_SIZE;
+    const end   = Math.min(start + CHUNK_SIZE, totalBytes);
+    const chunk = buffer.slice(start, end);
+    const b64   = toBase64(chunk);
+    const pct   = Math.round(((i + 1) / totalChunks) * 100);
 
     onProgress(pct, i + 1, totalChunks);
 
@@ -450,7 +472,6 @@ async function uploadChunked(file, base, fileType, photoIndex, onProgress) {
       chunkData   : b64
     });
 
-    // Small pause between chunks — helps slow connections
     if (i < totalChunks - 1) await sleep(300);
   }
 
@@ -479,13 +500,20 @@ function resetAll() {
   document.getElementById('progressBox').classList.remove('show');
   document.getElementById('stepsEl').innerHTML = '';
   showWarn(false);
+  isSubmitting = false;
 }
 
 // ── SUBMIT ────────────────────────────────────────────────────────
 async function handleSubmit(ev) {
   ev.preventDefault();
 
-  // Collect
+  // ✅ FIX: Double-submit prevention
+  if (isSubmitting) {
+    alert('Upload chal raha hai, wait karo! Page band mat karo.');
+    return;
+  }
+
+  // Collect values
   const hostName    = document.getElementById('hostName').value.trim();
   const hostId      = document.getElementById('hostId').value.trim();
   const joiningDate = document.getElementById('joiningDate').value;
@@ -510,6 +538,8 @@ async function handleSubmit(ev) {
   if (!consentEl)   { alert('Media consent choose karo!'); return; }
   if (videoFile.size > 500 * 1024 * 1024) { alert('Video 500MB se badi hai! Compress karke try karo.'); return; }
 
+  // ✅ FIX: Lock submission
+  isSubmitting = true;
   const btn = document.getElementById('submitBtn');
   btn.disabled    = true;
   btn.textContent = 'Uploading… Ruko mat jao ⏳';
@@ -520,10 +550,26 @@ async function handleSubmit(ev) {
   buildSteps();
 
   try {
-    // ── Step 0: Text row ──────────────────────────────────────────
+    // ── Step 0: Check duplicate + Save text row ───────────────────
     stepActive('s0');
-    setProgress(2, 'Form details save ho rahi hain…');
+    setProgress(2, 'Form details check ho rahi hain…');
     setStatus('Step 1/5 — Details save ho rahi hain…');
+
+    // ✅ FIX: Duplicate check pehle
+    const dupCheck = await checkDuplicate(hostId);
+    if (dupCheck.pending) {
+      // Row already pending hai — purana delete karo ya user ko batao
+      const proceed = confirm(
+        `Host ID "${hostId}" ka ek pending form already hai (Row ${dupCheck.row}).\n\nKya aap phir bhi naya submit karna chahte ho?\n\n"Cancel" dabao aur pehle sheet mein purana row delete karo.`
+      );
+      if (!proceed) {
+        btn.disabled    = false;
+        btn.textContent = 'SUBMIT APPLICATION ✦';
+        isSubmitting    = false;
+        return;
+      }
+    }
+
     await post({ ...base, action: 'textOnly' });
     stepDone('s0', '✓ Details saved');
     setProgress(5, 'Details saved ✓');
@@ -535,7 +581,7 @@ async function handleSubmit(ev) {
     setProgress(6, `🎬 Video start (${videoMB} MB)…`);
 
     await uploadChunked(videoFile, base, 'video', 0, (pct, cur, total) => {
-      const overall = 6 + Math.round(pct * 0.52);  // 6% → 58%
+      const overall = 6 + Math.round(pct * 0.52);
       setProgress(overall, `🎬 Video: chunk ${cur}/${total} (${pct}%)`);
     });
     stepDone('s1', '✓ Video uploaded');
@@ -572,6 +618,7 @@ async function handleSubmit(ev) {
     showWarn(false);
     btn.disabled    = false;
     btn.textContent = 'SUBMIT APPLICATION ✦';
+    isSubmitting    = false;
   }
 }
 </script>
